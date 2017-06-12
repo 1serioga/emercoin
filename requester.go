@@ -8,20 +8,20 @@ import (
 	"bytes"
 )
 
-type requester struct {
+type Requester struct {
 	dsn         string
 	parentValet string
 	dpo         string
 }
 
-type response struct {
+type Response struct {
 	error  string `json:"error"`
 	result string `json:"result"`
 }
 
 // create new request
-func NewRequester(dsn, parentValet, dpo string) *requester {
-	return &requester{
+func New(dsn, parentValet, dpo string) *Requester {
+	return &Requester{
 		dsn: dsn,
 		parentValet: parentValet,
 		dpo: dpo,
@@ -29,7 +29,7 @@ func NewRequester(dsn, parentValet, dpo string) *requester {
 }
 
 // add new entry to emercoin dpo
-func (r *requester) Add(name, val string, days int) (*response, error) {
+func (r *Requester) Add(name, val string, days int) (*Response, error) {
 	params := []string{
 		r.prepareDpo(name),
 		val,
@@ -38,7 +38,7 @@ func (r *requester) Add(name, val string, days int) (*response, error) {
 }
 
 // get entry from emercoin dpo
-func (r *requester) Get(name string) (*response, error) {
+func (r *Requester) Get(name string) (*Response, error) {
 	params := []string{
 		r.prepareDpo(name),
 	}
@@ -46,54 +46,54 @@ func (r *requester) Get(name string) (*response, error) {
 }
 
 // delete entry from emercoin dpo
-func (r *requester) Delete(name string) (*response, error) {
+func (r *Requester) Delete(name string) (*Response, error) {
 	params := []string{
 		r.prepareDpo(name),
 	}
 	return r.request("name_delete", params)
 }
 
-func (r *requester) request(method string, params []string) (*response, error) {
+func (r *Requester) request(method string, params []string) (*Response, error) {
 	type reqBody struct {
-		method string
-		params []string
+		Method string
+		Params []string
 	}
 	rb := &reqBody{
-		method: method,
-		params: params,
+		Method: method,
+		Params: params,
 	}
 	jsonStr, err := json.Marshal(rb)
 	if err != nil {
-		return nil, fmt.Errorf("could not encode params to json %v", jsonStr)
+		return nil, err
 	}
 	jsonStr = []byte(jsonStr)
 	httpReq, err := http.NewRequest("POST", r.dsn, bytes.NewBuffer(jsonStr))
 	if err != nil {
-		return nil, fmt.Errorf("could not make a request %v", r.dsn)
+		return nil, err
 	}
 	httpReq.Header.Add("Content-Type", "application/json; charset=utf-8")
 	httpReq.Header.Add("Accept-Charset", "utf-8;q=0.7,*;q=0.7")
 	httpClient := &http.Client{}
 	httpResp, err := httpClient.Do(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("could not make a request %v", r.dsn)
+		return nil, err
 	}
 
 	defer httpResp.Body.Close()
 	body, err := ioutil.ReadAll(httpResp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("could not read body from response %v", httpResp)
+		return nil, err
 	}
 
-	var resp response
+	var resp Response
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		return nil, fmt.Errorf("could decode body %v", body)
+		return nil, err
 	}
 
 	return &resp, nil
 }
 
-func (r *requester) prepareDpo(name string) string {
+func (r *Requester) prepareDpo(name string) string {
 	return fmt.Sprintf(r.dpo, name)
 }
